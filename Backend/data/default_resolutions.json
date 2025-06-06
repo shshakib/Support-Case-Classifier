@@ -1,0 +1,26 @@
+[
+  {
+    "name": "Resolved",
+    "description": "Issue has been fully addressed and closed."
+  },
+  {
+    "name": "Workaround Provided",
+    "description": "A temporary solution was given, but the underlying issue might persist."
+  },
+  {
+    "name": "Escalated",
+    "description": "Issue sent to a higher tier or different department."
+  },
+  {
+    "name": "Information Provided",
+    "description": "Customer received the requested information."
+  },
+  {
+    "name": "Duplicate Case",
+    "description": "This case is a duplicate of an existing one."
+  },
+  {
+    "name": "No Action Required",
+    "description": "Case closed without specific action, perhaps due to user error or misunderstanding."
+  }
+]

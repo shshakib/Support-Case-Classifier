@@ -4,6 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, ValidationError
 from dotenv import load_dotenv
+from typing import List, Dict, Any, Optional
 
 # --- LangChain Imports ---
 from langchain_openai import ChatOpenAI
@@ -11,10 +12,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_community.chat_models import ChatOllama
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import JsonOutputParser
-from langchain_core.messages import AIMessage
-from langchain_core.runnables import RunnableParallel, RunnablePassthrough
-from typing import List, Dict, Any, Optional
-
+from langchain_core.runnables import RunnablePassthrough
 # --- End LangChain Imports ---
 
 load_dotenv()
@@ -41,197 +39,197 @@ class Category(BaseModel):
     description: str
 
 class Case(BaseModel):
-    Title: str = Field(alias="Title")
+    CaseNumber: str = Field(alias="CaseNumber")
+    CaseTitle: str = Field(alias="CaseTitle")
     Description: str = Field(alias="Description")
-    # Allow other fields from CSV to be passed through
-    # We use a dict to capture arbitrary extra fields from the CSV
+    StatusReason: str = Field(alias="StatusReason")
     extra_fields: dict = Field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, data: dict):
-        # Manually extract known fields and pass remaining as extra_fields
-        known_fields = {"Title", "Description"} # Add other fixed fields if they exist
+        known_fields = {"CaseNumber", "CaseTitle", "Description", "StatusReason"}
         instance_data = {k: v for k, v in data.items() if k in known_fields}
         extra_fields = {k: v for k, v in data.items() if k not in known_fields}
         return cls(**instance_data, extra_fields=extra_fields)
 
-# Request body model for the categorization endpoint
-class CategorizationRequest(BaseModel):
-    cases: List[Dict[str, Any]]  # Raw dictionaries from CSV before Pydantic Case model
-    availableCategories: List[Category]
-    availableResolutions: List[Category]
-    selectedModel: str
-
-# Response model for a single categorized case
 class CategorizedCase(BaseModel):
-    originalCase: Dict[str, Any] # Use Dict[str, Any] to accommodate flattened fields
+    originalCase: Dict[str, Any]
     predictedCategory: str
     predictedResolution: str
     predictedCertainty: str
     predictedReasoning: str
-    error: Optional[str] = None # Added for error handling
+    error: Optional[str] = None
 
-# --- In-memory storage for categories and resolutions (for demonstration) ---
-# In a real application, these would be loaded from a database or configuration.
-product_categories_db: List[Category] = [
-    Category(name="Technical Support", description="Issues requiring technical assistance, troubleshooting, or bug reports."),
-    Category(name="Billing/Accounts", description="Questions or problems related to invoices, payments, subscriptions, or account management."),
-    Category(name="Feature Request", description="Suggestions for new features or enhancements to existing ones."),
-    Category(name="General Inquiry", description="Questions or feedback not fitting into other categories."),
-]
-
-resolution_types_db: List[Category] = [
-    Category(name="Resolved - Provided Solution", description="The customer's issue was resolved by providing a specific solution or workaround."),
-    Category(name="Resolved - Bug Fix", description="The issue was a confirmed bug that has been fixed in a new release or patch."),
-    Category(name="Resolved - Information Provided", description="The customer's question was answered by providing relevant information or documentation."),
-    Category(name="Unresolved - Escalated", description="The issue could not be resolved by the first line of support and was escalated to a specialized team."),
-    Category(name="Unresolved - Requires More Info", description="The customer did not provide enough information to resolve the issue."),
-    Category(name="Duplicate", description="The case is a duplicate of an existing case."),
-]
-
-# --- LLM Chain Setup ---
-def get_llm_chain(model_name: str):
-    if model_name == 'ollama':
-        # Assumes Ollama server is running locally and 'llama3' model is pulled
-        llm = ChatOllama(model="llama3", temperature=0) # Set temperature to 0 for consistent JSON output
-    elif model_name == 'gemini':
-        # For Gemini, ensure GOOGLE_API_KEY is set in your .env
-        llm = ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
-    elif model_name == 'openai':
-        # For OpenAI, ensure OPENAI_API_KEY is set in your .env
-        llm = ChatOpenAI(model="gpt-4o-mini", temperature=0) # Using a smaller, faster model for general use
+# --- LLM Setup ---
+def get_llm(model_name: str):
+    if model_name == "openai":
+        return ChatOpenAI(model="gpt-4o-mini", temperature=0)
+    elif model_name == "gemini":
+        return ChatGoogleGenerativeAI(model="gemini-pro", temperature=0)
+    elif model_name == "ollama":
+        return ChatOllama(model="llama3", temperature=0)
     else:
         raise ValueError(f"Unsupported model: {model_name}")
 
-    # The prompt should clearly ask for JSON output matching the expected structure
-    prompt_template = PromptTemplate(
-        template="""You are an AI assistant designed to categorize and provide resolutions for customer support cases.
-        Based on the provided case details, available categories, and available resolution types, categorize the case and suggest a resolution.
-        You must output your answer in JSON format with the following keys: "category", "resolution", "certainty", and "reasoning".
+# --- Data Loading and Saving Functions ---
+def load_data_from_json(file_path: str) -> List[Dict[str, Any]]:
+    """Loads data from a JSON file."""
+    try:
+        with open(file_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print(f"Error: File not found at {file_path}")
+        raise HTTPException(status_code=500, detail=f"Required data file not found: {file_path}")
+    except json.JSONDecodeError:
+        print(f"Error: Could not decode JSON from {file_path}")
+        raise HTTPException(status_code=500, detail=f"Error reading JSON from file: {file_path}")
+    except Exception as e:
+        print(f"An unexpected error occurred loading {file_path}: {e}")
+        raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {e}")
 
-        Strictly adhere to the following JSON format:
-        ```json
-        {{
-            "category": "string",
-            "resolution": "string",
-            "certainty": "string (e.g., 'High', 'Medium', 'Low')",
-            "reasoning": "string (brief explanation for categorization and resolution)"
-        }}
-        ```
-        The "category" and "resolution" MUST EXACTLY match one of the provided available names.
-        If no category or resolution fits well, you may suggest the closest one or indicate "Uncategorized" or "Unresolved".
+def save_data_to_json(file_path: str, data: List[Dict[str, Any]]):
+    """Saves a list of dictionaries to a JSON file."""
+    try:
+        # Ensure the directory exists
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2) # Use indent for pretty printing
+    except Exception as e:
+        print(f"Error: Could not save data to {file_path}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error saving data to file: {e}")
 
-        Available Categories:
-        {available_categories}
 
-        Available Resolution Types:
-        {available_resolutions}
+# --- Prompt Template ---
+PROMPT_TEMPLATE = """
+You are an AI assistant specialized in categorizing and resolving customer service cases.
+Your task is to analyze the provided case details and classify it into one of the given product categories and determine its resolution type.
 
-        Customer Case Details:
-        Title: {case_title}
-        Description: {case_description}
+Here are the details for the case:
+Case Number: {case_number}
+Case Title: {case_title}
+Case Description: {description}
+Status Reason: {status_reason}
 
-        Your JSON response:
-        """,
-        input_variables=["case_title", "case_description", "available_categories", "available_resolutions"],
+Product Categories: {product_categories_json}
+Resolution Types: {resolution_types_json}
+
+Based on the "Case Title" and 'Case Description' and 'Status Reason' for resolution, determine the most fitting single category and resolution type.
+Also, provide a certainty level for your prediction (high, medium, or low) and a brief reasoning for your choices.
+
+The output MUST be a JSON object with the following keys:
+{{
+    "category": "Predicted Category Name (from Product Categories)",
+    "resolution": "Predicted Resolution Type (from Resolution Types)",
+    "certainty": "high | medium | low",
+    "reasoning": "Brief explanation for the categorization and resolution, explicitly referencing Case Title, Description, and Status Reason."
+}}
+Make sure 'category' and 'resolution' directly match one of the provided names in their respective lists.
+"""
+
+# --- Routes ---
+@app.get("/categories")
+async def get_categories():
+    categories_path = os.path.join(os.path.dirname(__file__), "data", "default_categories.json")
+    return load_data_from_json(categories_path)
+
+@app.post("/categories")
+async def update_categories(new_categories: List[Category]):
+    """Receives a list of categories and saves them to default_categories.json."""
+    categories_path = os.path.join(os.path.dirname(__file__), "data", "default_categories.json")
+    
+    # Convert Pydantic models to dictionaries for JSON serialization
+    data_to_save = [cat.model_dump() for cat in new_categories]
+    
+    save_data_to_json(categories_path, data_to_save)
+    return {"message": "Categories updated successfully", "categories": new_categories}
+
+@app.get("/resolutions")
+async def get_resolutions():
+    resolutions_path = os.path.join(os.path.dirname(__file__), "data", "default_resolutions.json")
+    return load_data_from_json(resolutions_path)
+
+@app.post("/resolutions")
+async def update_resolutions(new_resolutions: List[Category]):
+    """Receives a list of resolutions and saves them to default_resolutions.json."""
+    resolutions_path = os.path.join(os.path.dirname(__file__), "data", "default_resolutions.json")
+    
+    # Convert Pydantic models to dictionaries for JSON serialization
+    data_to_save = [res.model_dump() for res in new_resolutions]
+    
+    save_data_to_json(resolutions_path, data_to_save)
+    return {"message": "Resolutions updated successfully", "resolutions": new_resolutions}
+
+
+@app.post("/categorize")
+async def categorize_cases(cases: List[Dict[str, Any]], model_name: str = "openai"):
+    categorized_results: List[CategorizedCase] = []
+    current_llm = get_llm(model_name)
+    parser = JsonOutputParser()
+    prompt = PromptTemplate(
+        template=PROMPT_TEMPLATE,
+        input_variables=["case_number", "case_title", "description", "status_reason", "product_categories_json", "resolution_types_json"],
+        partial_variables={},
     )
 
-    output_parser = JsonOutputParser()
-
-    # Create the chain: Prompt -> LLM -> Output Parser
-    llm_chain = prompt_template | llm | output_parser
-    return llm_chain
-
-# --- API Endpoints ---
-@app.get("/")
-async def read_root():
-    return {"message": "Welcome to the Case Categorization API"}
-
-@app.get("/categories", response_model=List[Category])
-async def get_categories():
-    return product_categories_db
-
-@app.post("/categories", response_model=List[Category])
-async def update_categories(categories: List[Category]):
-    global product_categories_db
-    product_categories_db = categories
-    return product_categories_db
-
-@app.get("/resolutions", response_model=List[Category])
-async def get_resolutions():
-    return resolution_types_db
-
-@app.post("/resolutions", response_model=List[Category])
-async def update_resolutions(resolutions: List[Category]):
-    global resolution_types_db
-    resolution_types_db = resolutions
-    return resolution_types_db
-
-@app.post("/categorize-cases", response_model=List[CategorizedCase])
-async def categorize_cases(request: CategorizationRequest):
-    categorized_results: List[CategorizedCase] = []
-    cases_for_processing: List[Case] = []
-
-    # Parse raw dictionaries from frontend into Pydantic Case models
-    for raw_case_data in request.cases:
-        try:
-            case_instance = Case.from_dict(raw_case_data)
-            cases_for_processing.append(case_instance)
-        except ValidationError as e:
-            # If a single case fails Pydantic validation, add an error entry for it
-            print(f"Validation error for a raw case: {raw_case_data} - {e.errors()}")
-            # Create a placeholder Case instance to hold the original data for error reporting
-            error_case_placeholder = Case(Title=raw_case_data.get('Title', 'N/A'), Description=raw_case_data.get('Description', 'N/A'))
-            # Populate extra_fields with everything if it failed initial parsing
-            error_case_placeholder.extra_fields = {k: v for k, v in raw_case_data.items() if k not in ["Title", "Description"]}
-
-            categorized_results.append(CategorizedCase(
-                originalCase={**error_case_placeholder.model_dump(by_alias=True), **error_case_placeholder.extra_fields},
-                predictedCategory="Error",
-                predictedResolution="Error",
-                predictedCertainty="N/A",
-                predictedReasoning=f"Failed to parse case data: {e.errors()[0].get('msg', 'Unknown validation error')}",
-                error=f"Validation failed for case: {e.errors()[0].get('loc', ['Unknown Field'])[0]} - {e.errors()[0].get('msg', 'Unknown error')}"
-            ))
-            continue # Skip to the next case if parsing failed
-
-    # Format categories and resolutions for the prompt
-    available_categories_str = json.dumps([c.model_dump() for c in request.availableCategories])
-    available_resolutions_str = json.dumps([r.model_dump() for r in request.availableResolutions])
-
-    # Get the appropriate LLM chain based on selected model
-    llm_chain = get_llm_chain(request.selectedModel)
-
-    # Prepare batch inputs for LLM
-    batch_inputs = [
-        {
-            "case_title": case_item.Title,
-            "case_description": case_item.Description,
-            "available_categories": available_categories_str,
-            "available_resolutions": available_resolutions_str,
-        }
-        for case_item in cases_for_processing
-    ]
-
     try:
-        # Batch invoke the LLM chain
-        # The invoke method might return results in a list directly
-        batch_llm_outputs = llm_chain.batch(batch_inputs) # Assumes batch is synchronous or handles await internally
+        categories = await get_categories()
+        resolutions = await get_resolutions()
+
+        cases_for_processing: List[Case] = []
+        for case_data in cases:
+            try:
+                cases_for_processing.append(Case.from_dict(case_data))
+            except ValidationError as e:
+                categorized_results.append(CategorizedCase(
+                    originalCase=case_data,
+                    predictedCategory="Error",
+                    predictedResolution="Error",
+                    predictedCertainty="Error",
+                    predictedReasoning=f"Missing required fields for processing: {e}",
+                    error=f"Validation Error: {e}"
+                ))
+
+        if not cases_for_processing:
+            return categorized_results
+
+        chain = (
+            {
+                "case_number": RunnablePassthrough(),
+                "case_title": RunnablePassthrough(),
+                "description": RunnablePassthrough(),
+                "status_reason": RunnablePassthrough(),
+                "product_categories_json": lambda x: json.dumps([c['name'] for c in categories]),
+                "resolution_types_json": lambda x: json.dumps([r['name'] for r in resolutions]),
+            }
+            | prompt
+            | current_llm
+            | parser
+        )
+
+        batch_inputs = [
+            {
+                "case_number": case.CaseNumber,
+                "case_title": case.CaseTitle,
+                "description": case.Description,
+                "status_reason": case.StatusReason,
+            }
+            for case in cases_for_processing
+        ]
+
+        batch_llm_outputs = chain.batch(batch_inputs)
 
         for i, result_dict in enumerate(batch_llm_outputs):
-            original_case = cases_for_processing[i] # Use the enriched Case object
+            original_case = cases_for_processing[i]
 
-            # Ensure the result_dict has the expected keys, provide fallbacks
             categorized_results.append(CategorizedCase(
-                originalCase={**original_case.model_dump(by_alias=True), **original_case.extra_fields}, # Include extra fields here
+                originalCase={**original_case.model_dump(by_alias=True), **original_case.extra_fields},
                 predictedCategory=result_dict.get("category", "Uncategorized"),
                 predictedResolution=result_dict.get("resolution", "Unresolved"),
                 predictedCertainty=result_dict.get("certainty", "unknown"),
-                predictedReasoning=result_dict.get("reasoning", "No reasoning provided."), # New reasoning field
+                predictedReasoning=result_dict.get("reasoning", "No reasoning provided."),
             ))
     except Exception as e:
         print(f"Error during batch categorization: {e}")
-        # If the whole batch fails, mark all cases as error
         for case_item in cases_for_processing:
             categorized_results.append(CategorizedCase(
                 originalCase={**case_item.model_dump(by_alias=True), **case_item.extra_fields},

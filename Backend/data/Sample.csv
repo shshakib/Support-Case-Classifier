@@ -1,0 +1,11 @@
+CaseNumber,CaseTitle,Description,StatusReason,CustomerName,Priority,DateOpened
+CS-2024-001,Printer not connecting to Wi-Fi,"Customer's HP OfficeJet printer is unable to connect to their home Wi-Fi network. Tried resetting router and printer, no change. Error code: E34.",Pending customer response for router details,Alice Smith,High,2024-05-28
+CS-2024-002,Software license key invalid,"Received an invalid license key after purchasing 'ProDesigner' software. Cannot activate the product. Order ID: #12345.",Customer provided new key,Bob Johnson,Medium,2024-05-29
+CS-2024-003,Slow application performance,"Application 'DataCruncher' is running very slowly, especially when processing large datasets. Takes 5x longer than usual. Last update applied yesterday.",Waiting for log files,Charlie Brown,High,2024-05-30
+CS-2024-004,Forgot account password,"Cannot log in to online portal; forgot password. Password reset link not arriving in email. Username: user123.",Password reset email sent,Dana White,Low,2024-05-30
+CS-2024-005,Billing discrepancy for last month,"Monthly bill is higher than expected. Believes a discount was not applied. Invoice #: INV-2024-04-001.",Adjusted billing,Eve Adams,Medium,2024-06-01
+CS-2024-006,New feature request: Dark Mode,"Suggesting a dark mode option for the mobile application to reduce eye strain during night use.",Forwarded to product team,Frank Green,Low,2024-06-02
+CS-2024-007,Incorrect report data,"Generated sales report shows inaccurate figures for Q1 2024. Data seems off by 15%.",Confirmed data issue,Grace Hall,High,2024-06-03
+CS-2024-008,Unable to upload files,"Getting 'permission denied' error when trying to upload files to cloud storage. User: testuser.",Resolved permissions,Henry King,Medium,2024-06-04
+CS-2024-009,General question about API limits,"Seeking clarification on API rate limits for the 'Public Data API'. Documentation is unclear.",Information provided,Ivy Lee,Low,2024-06-05
+CS-2024-010,Duplicate account identified,"System flagged a potential duplicate account for user 'Jane Doe'. Needs verification.",Merged accounts,Jane Doe,Medium,2024-06-05
