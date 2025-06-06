@@ -1,0 +1,22 @@
+[
+  {
+    "name": "Technical Support",
+    "description": "Issues related to product functionality or technical glitches."
+  },
+  {
+    "name": "Billing Inquiry",
+    "description": "Questions or disputes about invoices, payments, or subscriptions."
+  },
+  {
+    "name": "Account Management",
+    "description": "Requests for password resets, profile updates, or account closures."
+  },
+  {
+    "name": "Product Feature Request",
+    "description": "Suggestions or requests for new features or improvements."
+  },
+  {
+    "name": "General Inquiry",
+    "description": "General questions not fitting other categories."
+  }
+]
