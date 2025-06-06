@@ -1,6 +1,5 @@
-// src/App.tsx
 import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'; // Import useLocation
 import CaseCategorizationApp from './components/CaseCategorizationApp';
 import SettingsPage from './components/SettingsPage';
 
@@ -52,10 +51,10 @@ function App() {
 
   if (loadingInitialData) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin inline-block w-10 h-10 border-4 border-t-4 border-blue-200 rounded-full border-t-blue-600"></div>
-          <p className="mt-4 text-xl">Loading application settings...</p>
+          <div className="animate-spin inline-block w-12 h-12 border-4 border-t-4 border-blue-400 rounded-full border-t-blue-700"></div>
+          <p className="mt-4 text-xl text-blue-300 font-semibold">Loading application settings...</p>
         </div>
       </div>
     );
@@ -63,8 +62,8 @@ function App() {
 
   if (initialDataError) {
     return (
-      <div className="min-h-screen bg-gray-900 text-gray-50 flex items-center justify-center p-6">
-        <div className="bg-red-900 p-8 rounded-lg shadow-lg text-red-200 border border-red-700 text-center">
+      <div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center p-6">
+        <div className="bg-red-900 p-8 rounded-lg shadow-xl text-red-100 border border-red-700 text-center">
           <p className="font-bold text-2xl mb-4">Application Error</p>
           <p className="text-lg">{initialDataError}</p>
           <p className="mt-4 text-sm text-red-300">Please check your backend server and refresh the page.</p>
@@ -75,26 +74,15 @@ function App() {
 
   return (
     <Router>
-      <div className="flex flex-col min-h-screen bg-gray-900">
+      <div className="flex flex-col min-h-screen bg-gray-950"> {/* Deeper background color */}
         {/* Navigation Bar */}
-        <nav className="bg-gray-800 p-4 shadow-md">
-          <div className="max-w-6xl mx-auto flex justify-between items-center">
-            <Link to="/" className="text-2xl font-bold text-blue-400 hover:text-blue-300 transition">
-              Case Categorizer
+        <nav className="bg-gray-850 p-4 shadow-lg border-b border-gray-700"> {/* Slightly lighter nav background, stronger shadow */}
+          <div className="max-w-7xl mx-auto flex justify-between items-center"> {/* Wider max-width */}
+            <Link to="/" className="text-3xl font-extrabold text-blue-400 hover:text-blue-300 transition-colors duration-200">
+              Case Classifier
             </Link>
-            <div>
-              <Link
-                to="/"
-                className="px-4 py-2 rounded-md text-gray-300 hover:bg-gray-700 hover:text-white transition mr-2"
-              >
-                Categorization
-              </Link>
-              <Link
-                to="/settings"
-                className="px-4 py-2 rounded-md text-gray-300 hover:bg-gray-700 hover:text-white transition"
-              >
-                Settings
-              </Link>
+            <div className="flex space-x-6">
+              <NavLink to="/settings" label="Settings" />
             </div>
           </div>
         </nav>
@@ -130,6 +118,34 @@ function App() {
       </div>
     </Router>
   );
+}
+
+// Helper component for navigation links to show active state
+interface NavLinkProps {
+    to: string;
+    label: string;
+    className?: string;
+}
+
+function NavLink({ to, label, className = '' }: NavLinkProps) {
+    const location = useLocation();
+    const isActive = location.pathname === to;
+
+    return (
+        <Link
+            to={to}
+            className={`
+                px-5 py-2 rounded-md font-medium text-lg transition-all duration-200
+                ${isActive
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                }
+                ${className}
+            `}
+        >
+            {label}
+        </Link>
+    );
 }
 
 export default App;
