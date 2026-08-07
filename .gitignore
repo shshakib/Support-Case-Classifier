@@ -1,0 +1,44 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+credentials*.json
+service-account*.json
+.npmrc
+.pypirc
+
+# Python
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+.pytest_cache/
+.pytest_tmp/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+*.sqlite3
+
+# JavaScript
+node_modules/
+dist/
+coverage/
+
+# Runtime output
+logs/
+*.log
+
+# Operating system and editor files
+.idea/
+.DS_Store
+Thumbs.db
+
+# .vscode is intentionally tracked for shared tasks and debugging.
