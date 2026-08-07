@@ -165,13 +165,10 @@ select:focus, input:focus, textarea:focus { border-color: #6c96df; outline: 3px 
 
 .settings-page { max-width: 980px; margin: 0 auto; }
 .settings-section + .settings-section { margin-top: 2px; }
-.model-list { display: grid; gap: 8px; }
-.model-option { display: grid; grid-template-columns: 22px 1fr auto; align-items: center; gap: 12px; min-height: 62px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; cursor: pointer; }
-.model-option:hover { border-color: #acb8c7; }
-.model-option.selected { border-color: #7fa4e5; background: #f3f7ff; }
-.model-option input { position: absolute; opacity: 0; pointer-events: none; }
-.model-radio { display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid #a8b4c3; border-radius: 50%; color: #fff; }
-.model-option.selected .model-radio { border-color: var(--primary); background: var(--primary); }
+.provider-list { display: grid; gap: 8px; }
+.provider-option { display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px; min-height: 62px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 6px; }
+.provider-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 6px; background: #eef2f6; color: #68778a; }
+.provider-icon.configured { background: #e9f7f0; color: #157354; }
 .model-copy { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
 .model-copy strong { font-size: 14px; }
 .model-copy > span { overflow: hidden; color: var(--muted); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
@@ -241,8 +238,8 @@ select:focus, input:focus, textarea:focus { border-color: #6c96df; outline: 3px 
   .classify-button { width: 100%; }
   .summary-strip { overflow-x: auto; }
   .summary-strip > div { min-width: 120px; }
-  .model-option { grid-template-columns: 22px 1fr; }
-  .model-option > .badge { grid-column: 2; }
+  .provider-option { grid-template-columns: 34px 1fr; }
+  .provider-option > .badge { grid-column: 2; }
   .taxonomy-header { display: none; }
   .taxonomy-row { grid-template-columns: 1fr 44px; }
   .taxonomy-row textarea { grid-column: 1; }

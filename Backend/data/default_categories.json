@@ -1,22 +1,22 @@
 [
   {
     "name": "Technical Support",
-    "description": "Issues related to product functionality or technical glitches."
+    "description": "Product errors, degraded performance, access failures, integrations, or troubleshooting. Excludes billing and account administration."
   },
   {
     "name": "Billing Inquiry",
-    "description": "Questions or disputes about invoices, payments, or subscriptions."
+    "description": "Questions or disputes involving invoices, charges, refunds, discounts, payments, renewals, or subscription pricing."
   },
   {
     "name": "Account Management",
-    "description": "Requests for password resets, profile updates, or account closures."
+    "description": "Login credentials, user profiles, access ownership, duplicate accounts, and account lifecycle requests."
   },
   {
     "name": "Product Feature Request",
-    "description": "Suggestions or requests for new features or improvements."
+    "description": "Requests for new capabilities or changes to existing product behavior."
   },
   {
     "name": "General Inquiry",
-    "description": "General questions not fitting other categories."
+    "description": "How-to, documentation, or policy questions that do not report a defect or request billing or account changes."
   }
 ]

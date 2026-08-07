@@ -101,3 +101,30 @@ async def test_batch_preserves_order_limits_concurrency_and_isolates_errors(tmp_
     assert summary["successCount"] == 3
     assert summary["errorCount"] == 1
     assert "Description" not in telemetry.path.read_text(encoding="utf-8")
+
+
+@pytest.mark.parametrize(
+    ("error_type", "expected"),
+    [
+        (
+            "APIConnectionError",
+            "Could not connect to OpenAI. Check the backend's network access "
+            "and provider endpoint.",
+        ),
+        ("AuthenticationError", "OpenAI rejected the configured API key."),
+        ("RateLimitError", "OpenAI rate limit or quota was reached."),
+    ],
+)
+def test_provider_errors_use_safe_actionable_messages(error_type, expected):
+    provider_error = type(error_type, (Exception,), {})()
+
+    assert ClassificationService._safe_error_message(provider_error, "OpenAI") == expected
+
+
+def test_unknown_provider_error_does_not_expose_details():
+    provider_error = RuntimeError("sensitive provider details")
+
+    assert (
+        ClassificationService._safe_error_message(provider_error, "OpenAI")
+        == "The model provider could not classify this case."
+    )

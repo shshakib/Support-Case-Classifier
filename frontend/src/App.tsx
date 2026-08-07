@@ -154,7 +154,7 @@ function App() {
 
             <div className="topbar-status">
               <span className={`status-dot ${backendConnected ? "online" : "offline"}`} />
-              <span>{backendConnected ? "Local API online" : "API offline"}</span>
+              <span>{backendConnected ? "Backend online" : "Backend offline"}</span>
             </div>
           </div>
         </header>
@@ -173,8 +173,6 @@ function App() {
               categories={categories}
               resolutions={resolutions}
               models={models}
-              selectedModelId={selectedModelId}
-              onSelectModel={selectModel}
               onSaveTaxonomy={updateTaxonomy}
             />
           )}

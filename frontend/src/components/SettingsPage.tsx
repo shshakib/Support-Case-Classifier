@@ -1,4 +1,4 @@
-import { Activity, Check, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { Activity, Check, Cloud, Laptop, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import { getTelemetrySummary } from "../api/client";
@@ -9,8 +9,6 @@ interface SettingsPageProps {
   categories: TaxonomyItem[];
   resolutions: TaxonomyItem[];
   models: ModelInfo[];
-  selectedModelId: string;
-  onSelectModel: (modelId: string) => void;
   onSaveTaxonomy: (kind: "categories" | "resolutions", items: TaxonomyItem[]) => Promise<void>;
 }
 
@@ -37,8 +35,6 @@ export default function SettingsPage({
   categories,
   resolutions,
   models,
-  selectedModelId,
-  onSelectModel,
   onSaveTaxonomy,
 }: SettingsPageProps) {
   const [activeTab, setActiveTab] = useState<"categories" | "resolutions">("categories");
@@ -97,15 +93,16 @@ export default function SettingsPage({
       <div className="page-header"><div><p className="eyebrow">Local configuration</p><h1>Settings</h1></div></div>
 
       <section className="settings-section">
-        <div className="section-heading"><div><h2>Classification model</h2><p>The selected model is remembered in this browser.</p></div></div>
-        <div className="model-list">
+        <div className="section-heading"><div><h2>Model providers</h2><p>Provider configuration comes from Backend/.env. Choose the model for each run in the Workspace.</p></div></div>
+        <div className="provider-list">
           {models.map((model) => (
-            <label className={`model-option ${selectedModelId === model.id ? "selected" : ""}`} key={model.id}>
-              <input type="radio" name="model" value={model.id} checked={selectedModelId === model.id} onChange={() => onSelectModel(model.id)} />
-              <span className="model-radio" aria-hidden="true">{selectedModelId === model.id && <Check size={14} />}</span>
-              <span className="model-copy"><strong>{model.displayName}</strong><span>{model.modelName} · concurrency {model.maxConcurrency}</span></span>
-              <span className={`badge ${model.configured ? "badge-success" : "badge-muted"}`}>{model.local ? "Local" : model.configured ? "Configured" : "API key required"}</span>
-            </label>
+            <div className="provider-option" key={model.id}>
+              <span className={`provider-icon ${model.configured ? "configured" : ""}`} aria-hidden="true">
+                {model.local ? <Laptop size={17} /> : <Cloud size={17} />}
+              </span>
+              <span className="model-copy"><strong>{model.displayName}</strong><span>{model.modelName} / concurrency {model.maxConcurrency}</span></span>
+              <span className={`badge ${model.configured ? "badge-success" : "badge-muted"}`}>{model.local ? "Local endpoint" : model.configured ? "API key configured" : "API key required"}</span>
+            </div>
           ))}
         </div>
       </section>

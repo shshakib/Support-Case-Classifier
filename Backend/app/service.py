@@ -5,11 +5,20 @@ import logging
 from time import perf_counter
 
 from .config import Settings
-from .providers import ClassificationModelFactory, ModelPrediction
+from .providers import (
+    ClassificationModelFactory,
+    ModelPrediction,
+    PredictionParseError,
+    ProviderNotConfiguredError,
+)
 from .schemas import CaseInput, CategorizedCase, TaxonomyItem
 from .telemetry import LocalTelemetry, TelemetryEvent
 
 logger = logging.getLogger(__name__)
+
+
+class PredictionValidationError(ValueError):
+    """Raised when a prediction does not use the configured taxonomy."""
 
 
 class ClassificationService:
@@ -80,7 +89,14 @@ class ClassificationService:
                         "error_type": type(error).__name__,
                     },
                 )
-                return self._error_result(case, self._safe_error_message(error)), 0, 0
+                return (
+                    self._error_result(
+                        case,
+                        self._safe_error_message(error, definition.display_name),
+                    ),
+                    0,
+                    0,
+                )
 
         completed = await asyncio.gather(*(classify_one(case) for case in cases))
         results = [item[0] for item in completed]
@@ -142,7 +158,7 @@ class ClassificationService:
         matches = {item.name.casefold(): item.name for item in allowed}
         canonical = matches.get(predicted.strip().casefold())
         if canonical is None:
-            raise ValueError(f"The model returned an unsupported {label_type}.")
+            raise PredictionValidationError(f"The model returned an unsupported {label_type}.")
         return canonical
 
     @staticmethod
@@ -157,7 +173,27 @@ class ClassificationService:
         )
 
     @staticmethod
-    def _safe_error_message(error: Exception) -> str:
-        if isinstance(error, ValueError):
+    def _safe_error_message(error: Exception, provider_name: str) -> str:
+        if isinstance(
+            error,
+            (PredictionParseError, PredictionValidationError, ProviderNotConfiguredError),
+        ):
             return str(error)
+
+        error_type = type(error).__name__
+        if error_type in {"APIConnectionError", "ConnectError", "ConnectionError"}:
+            return (
+                f"Could not connect to {provider_name}. Check the backend's network "
+                "access and provider endpoint."
+            )
+        if error_type in {"APITimeoutError", "ConnectTimeout", "ReadTimeout"}:
+            return f"The request to {provider_name} timed out."
+        if error_type in {"AuthenticationError", "Unauthenticated"}:
+            return f"{provider_name} rejected the configured API key."
+        if error_type in {"PermissionDeniedError", "PermissionDenied"}:
+            return f"The configured account cannot use this {provider_name} model."
+        if error_type in {"RateLimitError", "ResourceExhausted"}:
+            return f"{provider_name} rate limit or quota was reached."
+        if error_type in {"NotFoundError", "ModelNotFoundError"}:
+            return f"The configured {provider_name} model is not available."
         return "The model provider could not classify this case."

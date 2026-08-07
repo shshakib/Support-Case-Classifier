@@ -252,7 +252,7 @@ export default function ClassifierPage({
 
           <div className="action-bar">
             <label className="field compact-field">
-              <span>Model</span>
+              <span>Model for this run</span>
               <select value={selectedModel?.id ?? ""} onChange={(event) => onSelectModel(event.target.value)}>
                 {models.map((model) => (
                   <option key={model.id} value={model.id} disabled={!model.configured}>

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 import { buildResultsCsv, parseCasesCsvText } from "./csv";
@@ -22,6 +23,16 @@ describe("parseCasesCsvText", () => {
     const parsed = parseCasesCsvText("CaseNumber,Description\n1,Details");
     expect(parsed.fatalError).toContain("CaseTitle");
     expect(parsed.cases).toHaveLength(0);
+  });
+
+  it("loads the repository sample without skipped or malformed rows", () => {
+    const sampleUrl = new URL("../../../Backend/data/Sample.csv", import.meta.url);
+    const parsed = parseCasesCsvText(readFileSync(sampleUrl, "utf8"), "Sample.csv");
+
+    expect(parsed.fatalError).toBeUndefined();
+    expect(parsed.cases).toHaveLength(10);
+    expect(parsed.skippedRows).toBe(0);
+    expect(parsed.issues).toHaveLength(0);
   });
 });
 

@@ -19,8 +19,10 @@ for importing cases, validating the data, reviewing model output, handling
 partial failures, and exporting the enriched CSV.
 
 <p align="center">
-  <img src="docs/images/workspace-review.png" alt="Support Case Classifier review workspace" width="100%" />
+  <img src="docs/media/support-case-classifier-demo.gif" alt="Support Case Classifier workflow from CSV upload through classification review" width="100%" />
 </p>
+
+<p align="center"><sub>Upload, validate, classify, inspect, and export support cases.</sub></p>
 
 ## The Problem
 
