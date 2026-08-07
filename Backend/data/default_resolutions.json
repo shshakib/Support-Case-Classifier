@@ -1,26 +1,26 @@
 [
   {
     "name": "Resolved",
-    "description": "Issue has been fully addressed and closed."
+    "description": "The underlying issue was corrected and the customer can proceed with no further action expected."
   },
   {
     "name": "Workaround Provided",
-    "description": "A temporary solution was given, but the underlying issue might persist."
+    "description": "A temporary alternative allows the customer to proceed while the underlying issue remains open."
   },
   {
     "name": "Escalated",
-    "description": "Issue sent to a higher tier or different department."
+    "description": "The case was transferred to a specialist, engineering, product, billing, or another team for further action."
   },
   {
     "name": "Information Provided",
-    "description": "Customer received the requested information."
+    "description": "The request was answered with guidance or documentation and no system or account change was needed."
   },
   {
     "name": "Duplicate Case",
-    "description": "This case is a duplicate of an existing one."
+    "description": "The same issue is already tracked in another support case or incident, so this case was linked to the existing record."
   },
   {
     "name": "No Action Required",
-    "description": "Case closed without specific action, perhaps due to user error or misunderstanding."
+    "description": "Review confirmed expected behavior, a false positive, a withdrawn request, or another situation where no change was needed."
   }
 ]

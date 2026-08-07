@@ -1,151 +1,185 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom'; // Import useLocation
-import CaseCategorizationApp from './components/CaseCategorizationApp';
-import SettingsPage from './components/SettingsPage';
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { MouseEvent } from "react";
+import { Activity, Settings, TableProperties } from "lucide-react";
 
-interface Category {
-  name: string;
-  description: string;
+import {
+  getCategories,
+  getHealth,
+  getModels,
+  getResolutions,
+  saveCategories,
+  saveResolutions,
+} from "./api/client";
+import ClassifierPage from "./components/ClassifierPage";
+import SettingsPage from "./components/SettingsPage";
+import type { ModelInfo, TaxonomyItem } from "./types";
+
+
+const MODEL_STORAGE_KEY = "support-classifier-model";
+type AppRoute = "/" | "/settings";
+
+
+function currentRoute(): AppRoute {
+  return window.location.pathname === "/settings" ? "/settings" : "/";
 }
 
-const BASE_URL = "http://localhost:8000";
 
 function App() {
-  const [productCategories, setProductCategories] = useState<Category[]>([]);
-  const [resolutionTypes, setResolutionTypes] = useState<Category[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('openai');
-  const [loadingInitialData, setLoadingInitialData] = useState(true);
-  const [initialDataError, setInitialDataError] = useState<string | null>(null);
+  const [categories, setCategories] = useState<TaxonomyItem[]>([]);
+  const [resolutions, setResolutions] = useState<TaxonomyItem[]>([]);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [backendConnected, setBackendConnected] = useState(false);
+  const [route, setRoute] = useState<AppRoute>(currentRoute);
 
-
-  // Effect to load initial categories and resolutions on component mount
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        setLoadingInitialData(true);
-        setInitialDataError(null);
-        const [categoriesRes, resolutionsRes] = await Promise.all([
-          fetch(`${BASE_URL}/categories`),
-          fetch(`${BASE_URL}/resolutions`),
+  const loadApplication = useCallback(async () => {
+    setLoading(true);
+    setLoadError(null);
+    try {
+      const [health, loadedCategories, loadedResolutions, loadedModels] =
+        await Promise.all([
+          getHealth(),
+          getCategories(),
+          getResolutions(),
+          getModels(),
         ]);
-
-        if (!categoriesRes.ok || !resolutionsRes.ok) {
-          throw new Error(`HTTP error! status: ${categoriesRes.status} / ${resolutionsRes.status}`);
+      setBackendConnected(health.status === "ok");
+      setCategories(loadedCategories);
+      setResolutions(loadedResolutions);
+      setModels(loadedModels);
+      setSelectedModelId((current) => {
+        const stored = localStorage.getItem(MODEL_STORAGE_KEY);
+        const candidate = current || stored;
+        if (candidate && loadedModels.some((model) => model.id === candidate)) {
+          return candidate;
         }
-
-        const categoriesData = await categoriesRes.json();
-        const resolutionsData = await resolutionsRes.json();
-
-        setProductCategories(categoriesData);
-        setResolutionTypes(resolutionsData);
-      } catch (error: any) {
-        console.error("Failed to fetch initial data:", error);
-        setInitialDataError(`Failed to load initial settings: ${error.message}. Please ensure your backend is running.`);
-      } finally {
-        setLoadingInitialData(false);
-      }
-    };
-
-    fetchInitialData();
+        return loadedModels.find((model) => model.configured)?.id ?? loadedModels[0]?.id ?? "";
+      });
+    } catch (error) {
+      setBackendConnected(false);
+      setLoadError(
+        error instanceof Error
+          ? error.message
+          : "The application could not connect to the backend.",
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  if (loadingInitialData) {
+  useEffect(() => {
+    void loadApplication();
+  }, [loadApplication]);
+
+  useEffect(() => {
+    const handlePopState = () => setRoute(currentRoute());
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
+  const selectedModel = useMemo(
+    () => models.find((model) => model.id === selectedModelId) ?? null,
+    [models, selectedModelId],
+  );
+
+  const selectModel = (modelId: string) => {
+    setSelectedModelId(modelId);
+    localStorage.setItem(MODEL_STORAGE_KEY, modelId);
+  };
+
+  const navigate = (event: MouseEvent<HTMLAnchorElement>, path: AppRoute) => {
+    if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    if (window.location.pathname !== path) window.history.pushState({}, "", path);
+    setRoute(path);
+  };
+
+  const updateTaxonomy = async (
+    kind: "categories" | "resolutions",
+    items: TaxonomyItem[],
+  ) => {
+    if (kind === "categories") {
+      setCategories(await saveCategories(items));
+    } else {
+      setResolutions(await saveResolutions(items));
+    }
+  };
+
+  if (loading) {
     return (
-      <div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin inline-block w-12 h-12 border-4 border-t-4 border-blue-400 rounded-full border-t-blue-700"></div>
-          <p className="mt-4 text-xl text-blue-300 font-semibold">Loading application settings...</p>
-        </div>
+      <div className="centered-state" role="status">
+        <span className="spinner spinner-large" aria-hidden="true" />
+        <h1>Case Classifier</h1>
+        <p>Connecting to the local API...</p>
       </div>
     );
   }
 
-  if (initialDataError) {
+  if (loadError) {
     return (
-      <div className="min-h-screen bg-gray-950 text-gray-50 flex items-center justify-center p-6">
-        <div className="bg-red-900 p-8 rounded-lg shadow-xl text-red-100 border border-red-700 text-center">
-          <p className="font-bold text-2xl mb-4">Application Error</p>
-          <p className="text-lg">{initialDataError}</p>
-          <p className="mt-4 text-sm text-red-300">Please check your backend server and refresh the page.</p>
+      <div className="centered-state">
+        <div className="state-icon state-icon-error" aria-hidden="true">
+          <Activity size={24} />
         </div>
+        <h1>Backend unavailable</h1>
+        <p>{loadError}</p>
+        <button className="button button-primary" onClick={() => void loadApplication()}>
+          Retry connection
+        </button>
       </div>
     );
   }
 
   return (
-    <Router>
-      <div className="flex flex-col min-h-screen bg-gray-950"> {/* Deeper background color */}
-        {/* Navigation Bar */}
-        <nav className="bg-gray-850 p-4 shadow-lg border-b border-gray-700"> {/* Slightly lighter nav background, stronger shadow */}
-          <div className="max-w-7xl mx-auto flex justify-between items-center"> {/* Wider max-width */}
-            <Link to="/" className="text-3xl font-extrabold text-blue-400 hover:text-blue-300 transition-colors duration-200">
-              Case Classifier
-            </Link>
-            <div className="flex space-x-6">
-              <NavLink to="/settings" label="Settings" />
+    <div className="app-shell">
+        <header className="topbar">
+          <div className="topbar-inner">
+            <a className="brand" href="/" onClick={(event) => navigate(event, "/")} aria-label="Case Classifier workspace">
+              <img src="/mark.svg" alt="" width="32" height="32" />
+              <span>Case Classifier</span>
+            </a>
+
+            <nav className="primary-nav" aria-label="Primary navigation">
+              <a className={route === "/" ? "active" : ""} href="/" onClick={(event) => navigate(event, "/")}>
+                <TableProperties size={17} />
+                Workspace
+              </a>
+              <a className={route === "/settings" ? "active" : ""} href="/settings" onClick={(event) => navigate(event, "/settings")}>
+                <Settings size={17} />
+                Settings
+              </a>
+            </nav>
+
+            <div className="topbar-status">
+              <span className={`status-dot ${backendConnected ? "online" : "offline"}`} />
+              <span>{backendConnected ? "Backend online" : "Backend offline"}</span>
             </div>
           </div>
-        </nav>
+        </header>
 
-        {/* Main Content Area with Routes */}
-        <div className="flex-grow">
-          <Routes>
-            <Route
-              path="/"
-              element={
-                <CaseCategorizationApp
-                  productCategories={productCategories}
-                  resolutionTypes={resolutionTypes}
-                  selectedModel={selectedModel}
-                />
-              }
+        <main className="main-content">
+          {route === "/" ? (
+            <ClassifierPage
+              categories={categories}
+              resolutions={resolutions}
+              models={models}
+              selectedModel={selectedModel}
+              onSelectModel={selectModel}
             />
-            <Route
-              path="/settings"
-              element={
-                <SettingsPage
-                  productCategories={productCategories}
-                  setProductCategories={setProductCategories}
-                  resolutionTypes={resolutionTypes}
-                  setResolutionTypes={setResolutionTypes}
-                  selectedModel={selectedModel}
-                  setSelectedModel={setSelectedModel}
-                />
-              }
+          ) : (
+            <SettingsPage
+              categories={categories}
+              resolutions={resolutions}
+              models={models}
+              onSaveTaxonomy={updateTaxonomy}
             />
-          </Routes>
-        </div>
-      </div>
-    </Router>
+          )}
+        </main>
+    </div>
   );
 }
 
-// Helper component for navigation links to show active state
-interface NavLinkProps {
-    to: string;
-    label: string;
-    className?: string;
-}
-
-function NavLink({ to, label, className = '' }: NavLinkProps) {
-    const location = useLocation();
-    const isActive = location.pathname === to;
-
-    return (
-        <Link
-            to={to}
-            className={`
-                px-5 py-2 rounded-md font-medium text-lg transition-all duration-200
-                ${isActive
-                    ? 'bg-blue-600 text-white shadow-md'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                }
-                ${className}
-            `}
-        >
-            {label}
-        </Link>
-    );
-}
 
 export default App;
