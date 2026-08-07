@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Backend API (FastAPI)",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "app.main:app",
+        "--port",
+        "8000"
+      ],
+      "cwd": "${workspaceFolder}\\Backend",
+      "envFile": "${workspaceFolder}\\Backend\\.env",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    }
+  ]
+}

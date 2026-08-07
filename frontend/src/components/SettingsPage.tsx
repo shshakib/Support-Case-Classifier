@@ -1,223 +1,164 @@
-// src/components/SettingsPage.tsx
-import React from 'react';
-import { useState, useEffect } from 'react';
+import { Activity, Check, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
-interface Category {
-  name: string;
-  description: string;
-}
+import { getTelemetrySummary } from "../api/client";
+import type { ModelInfo, TaxonomyItem, TelemetrySummary } from "../types";
 
-const MODELS = [
-  { id: 'openai', name: 'OpenAI (GPT-4.1 nano)' },
-  { id: 'gemini', name: 'Google Gemini (gemini-pro)' },
-  { id: 'ollama', name: 'Local Ollama (llama3)' },
-];
 
 interface SettingsPageProps {
-  productCategories: Category[];
-  setProductCategories: React.Dispatch<React.SetStateAction<Category[]>>;
-  resolutionTypes: Category[];
-  setResolutionTypes: React.Dispatch<React.SetStateAction<Category[]>>;
-  selectedModel: string;
-  setSelectedModel: React.Dispatch<React.SetStateAction<string>>;
+  categories: TaxonomyItem[];
+  resolutions: TaxonomyItem[];
+  models: ModelInfo[];
+  selectedModelId: string;
+  onSelectModel: (modelId: string) => void;
+  onSaveTaxonomy: (kind: "categories" | "resolutions", items: TaxonomyItem[]) => Promise<void>;
 }
 
+interface DraftItem extends TaxonomyItem { key: string; }
+
+
+function createDraft(item: TaxonomyItem): DraftItem {
+  return { ...item, key: crypto.randomUUID() };
+}
+
+
+function validateItems(items: DraftItem[]): string | null {
+  if (!items.length) return "At least one item is required.";
+  if (items.some((item) => !item.name.trim() || !item.description.trim())) {
+    return "Every item needs a name and description.";
+  }
+  const names = items.map((item) => item.name.trim().toLowerCase());
+  if (new Set(names).size !== names.length) return "Names must be unique.";
+  return null;
+}
+
+
 export default function SettingsPage({
-  productCategories,
-  setProductCategories,
-  resolutionTypes,
-  setResolutionTypes,
-  selectedModel,
-  setSelectedModel,
+  categories,
+  resolutions,
+  models,
+  selectedModelId,
+  onSelectModel,
+  onSaveTaxonomy,
 }: SettingsPageProps) {
-  const [showProductCategories, setShowProductCategories] = useState(false);
-  const [showResolutionTypes, setShowResolutionTypes] = useState(false);
+  const [activeTab, setActiveTab] = useState<"categories" | "resolutions">("categories");
+  const [categoryDrafts, setCategoryDrafts] = useState<DraftItem[]>(() => categories.map(createDraft));
+  const [resolutionDrafts, setResolutionDrafts] = useState<DraftItem[]>(() => resolutions.map(createDraft));
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [telemetry, setTelemetry] = useState<TelemetrySummary | null>(null);
+  const [telemetryError, setTelemetryError] = useState<string | null>(null);
 
-  const BASE_URL = "http://localhost:8000";
+  useEffect(() => setCategoryDrafts(categories.map(createDraft)), [categories]);
+  useEffect(() => setResolutionDrafts(resolutions.map(createDraft)), [resolutions]);
 
-  const saveToServer = async (endpoint: string, data: Category[]) => {
+  const loadTelemetry = async () => {
+    setTelemetryError(null);
     try {
-      const response = await fetch(`${BASE_URL}/${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to save data. Status: ${response.status}`);
-      }
-      console.log(`Saved ${endpoint} successfully.`);
+      setTelemetry(await getTelemetrySummary());
     } catch (error) {
-      console.error(`Error saving to ${endpoint}:`, error);
-      alert(`Failed to save ${endpoint}. Check console for details.`);
+      setTelemetryError(error instanceof Error ? error.message : "Telemetry could not be loaded.");
     }
   };
 
-  const updateCategory = (
-    index: number,
-    key: keyof Category,
-    value: string,
-    type: "product" | "resolution"
-  ) => {
-    const list = type === "product" ? [...productCategories] : [...resolutionTypes];
-    list[index][key] = value;
+  useEffect(() => { void loadTelemetry(); }, []);
 
-    if (type === "product") {
-      setProductCategories(list);
-    } else {
-      setResolutionTypes(list);
+  const drafts = activeTab === "categories" ? categoryDrafts : resolutionDrafts;
+  const setDrafts = activeTab === "categories" ? setCategoryDrafts : setResolutionDrafts;
+  const sourceItems = activeTab === "categories" ? categories : resolutions;
+  const cleanDrafts = useMemo(
+    () => drafts.map(({ name, description }) => ({ name: name.trim(), description: description.trim() })),
+    [drafts],
+  );
+  const isDirty = JSON.stringify(cleanDrafts) !== JSON.stringify(sourceItems);
+  const validationError = validateItems(drafts);
+
+  const updateDraft = (key: string, field: keyof TaxonomyItem, value: string) => {
+    setDrafts((current) => current.map((item) => item.key === key ? { ...item, [field]: value } : item));
+    setSaveState("idle");
+    setSaveError(null);
+  };
+
+  const save = async () => {
+    if (validationError) return;
+    setSaveState("saving");
+    setSaveError(null);
+    try {
+      await onSaveTaxonomy(activeTab, cleanDrafts);
+      setSaveState("saved");
+    } catch (error) {
+      setSaveState("idle");
+      setSaveError(error instanceof Error ? error.message : "Changes could not be saved.");
     }
-  };
-
-  const handleBlur = (type: "product" | "resolution") => {
-    const data = type === "product" ? productCategories : resolutionTypes;
-    const endpoint = type === "product" ? "categories" : "resolutions";
-    saveToServer(endpoint, data);
-  };
-
-  const addCategory = (type: "product" | "resolution") => {
-    const newItem = { name: "", description: "" };
-    if (type === "product") {
-      const updated = [...productCategories, newItem];
-      setProductCategories(updated);
-      saveToServer("categories", updated);
-    } else {
-      const updated = [...resolutionTypes, newItem];
-      setResolutionTypes(updated);
-      saveToServer("resolutions", updated);
-    }
-  };
-
-  const removeCategory = (index: number, type: "product" | "resolution") => {
-    if (type === "product") {
-      const updated = [...productCategories];
-      updated.splice(index, 1);
-      setProductCategories(updated);
-      saveToServer("categories", updated);
-    } else {
-      const updated = [...resolutionTypes];
-      updated.splice(index, 1);
-      setResolutionTypes(updated);
-      saveToServer("resolutions", updated);
-    }
-  };
-
-  const renderSection = (
-    type: "product" | "resolution",
-    show: boolean,
-    setShow: (v: boolean) => void
-  ) => {
-    const title = type === "product" ? "Product Categories" : "Resolution Types";
-    const data = type === "product" ? productCategories : resolutionTypes;
-    const nameLabel = type === "product" ? "Category Name" : "Resolution Name";
-    const buttonLabel = type === "product" ? "+ Add Category" : "+ Add Resolution Type";
-
-    return (
-      <div className="bg-gray-800 p-6 rounded-lg shadow-lg">
-        <h2 className="text-xl font-bold text-gray-100 mb-4 flex items-center">
-          <button
-            type="button"
-            onClick={() => setShow(!show)}
-            className="mr-2 w-5 h-5 flex items-center justify-center
-                       rounded-full bg-blue-600 text-white font-bold text-sm
-                       hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 transition"
-            aria-expanded={show}
-            aria-controls={`${type}-content`}
-          >
-            {show ? "−" : "+"}
-          </button>
-          {title}
-        </h2>
-
-        {show && (
-          <div id={`${type}-content`} className="mt-4 space-y-4">
-            <table className="min-w-full bg-gray-700 rounded-md overflow-hidden border-collapse"> {/* Added border-collapse */}
-              <thead className="bg-gray-600 text-gray-200">
-                <tr>
-                  <th className="py-2 px-3 text-left text-sm font-semibold w-1/3 border border-gray-600">{nameLabel}</th> {/* Added border */}
-                  <th className="py-2 px-3 text-left text-sm font-semibold w-1/2 border border-gray-600">Description</th> {/* Added border */}
-                  <th className="py-2 px-3 text-center text-sm font-semibold w-[100px] border border-gray-600">Actions</th> {/* Added border */}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-600">
-                {data.map((item, i) => (
-                  <tr key={i} className="hover:bg-gray-650 transition">
-                    <td className="py-1 px-3 align-top border border-gray-700"> {/* Added border */}
-                      <textarea
-                        value={item.name}
-                        onChange={(e) => updateCategory(i, "name", e.target.value, type)}
-                        onBlur={() => handleBlur(type)}
-                        className="w-full h-auto px-2 py-1 bg-gray-700 text-gray-50 border border-gray-600 rounded-sm outline-none resize-y min-h-[36px] focus:border-blue-500 transition"
-                        rows={1}
-                      />
-                    </td>
-                    <td className="py-1 px-3 align-top border border-gray-700"> {/* Added border */}
-                      <textarea
-                        value={item.description}
-                        onChange={(e) => updateCategory(i, "description", e.target.value, type)}
-                        onBlur={() => handleBlur(type)}
-                        className="w-full h-auto px-2 py-1 bg-gray-700 text-gray-50 border border-gray-600 rounded-sm outline-none resize-y min-h-[36px] focus:border-blue-500 transition"
-                        rows={1}
-                      />
-                    </td>
-                    <td className="py-1 px-3 text-center align-middle border border-gray-700"> {/* Added border */}
-                      <button
-                        type="button"
-                        onClick={() => removeCategory(i, type)}
-                        className="text-red-400 hover:text-red-300 text-xs font-medium px-2 py-1 rounded transition"
-                      >
-                        Remove
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button
-              type="button"
-              onClick={() => addCategory(type)}
-              className="mt-4 px-5 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition shadow-md"
-            >
-              {buttonLabel}
-            </button>
-          </div>
-        )}
-      </div>
-    );
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-50 p-6 sm:p-8 lg:p-12 font-sans">
-      <div className="max-w-6xl mx-auto space-y-10">
-        <h1 className="text-4xl sm:text-5xl font-extrabold text-center text-blue-400 mb-10">
-          Application Settings
-        </h1>
+    <div className="page-stack settings-page">
+      <div className="page-header"><div><p className="eyebrow">Local configuration</p><h1>Settings</h1></div></div>
 
-        {/* Model Selection */}
-        <div className="bg-gray-800 p-6 rounded-lg shadow-lg flex flex-col sm:flex-row items-center space-y-4 sm:space-y-0 sm:space-x-6">
-          <div className="flex items-center space-x-3">
-            <label htmlFor="model-select" className="block text-lg font-medium text-gray-200">
-              Select LLM Model:
+      <section className="settings-section">
+        <div className="section-heading"><div><h2>Classification model</h2><p>The selected model is remembered in this browser.</p></div></div>
+        <div className="model-list">
+          {models.map((model) => (
+            <label className={`model-option ${selectedModelId === model.id ? "selected" : ""}`} key={model.id}>
+              <input type="radio" name="model" value={model.id} checked={selectedModelId === model.id} onChange={() => onSelectModel(model.id)} />
+              <span className="model-radio" aria-hidden="true">{selectedModelId === model.id && <Check size={14} />}</span>
+              <span className="model-copy"><strong>{model.displayName}</strong><span>{model.modelName} · concurrency {model.maxConcurrency}</span></span>
+              <span className={`badge ${model.configured ? "badge-success" : "badge-muted"}`}>{model.local ? "Local" : model.configured ? "Configured" : "API key required"}</span>
             </label>
-            <select
-              id="model-select"
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
-              className="block w-auto py-2 px-4 border border-gray-600 bg-gray-700 text-gray-50 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            >
-              {MODELS.map(model => (
-                <option key={model.id} value={model.id}>
-                  {model.name}
-                </option>
-              ))}
-            </select>
+          ))}
+        </div>
+      </section>
+
+      <section className="settings-section taxonomy-section">
+        <div className="section-heading settings-heading">
+          <div><h2>Taxonomy</h2><p>Names are enforced as the model's allowed outputs.</p></div>
+          <div className="settings-actions">
+            {saveState === "saved" && <span className="saved-label"><Check size={15} /> Saved</span>}
+            <button className="button button-primary" disabled={!isDirty || Boolean(validationError) || saveState === "saving"} onClick={() => void save()}>
+              {saveState === "saving" ? <span className="spinner" /> : <Save size={16} />}Save changes
+            </button>
           </div>
         </div>
 
-        {/* Categories and Resolutions Sections */}
-        {renderSection("product", showProductCategories, setShowProductCategories)}
-        {renderSection("resolution", showResolutionTypes, setShowResolutionTypes)}
-      </div>
+        <div className="segmented-control" role="tablist" aria-label="Taxonomy type">
+          <button role="tab" aria-selected={activeTab === "categories"} onClick={() => setActiveTab("categories")}>Categories <span>{categories.length}</span></button>
+          <button role="tab" aria-selected={activeTab === "resolutions"} onClick={() => setActiveTab("resolutions")}>Resolutions <span>{resolutions.length}</span></button>
+        </div>
+
+        {(validationError || saveError) && <div className="notice notice-error"><Activity size={17} />{validationError ?? saveError}</div>}
+
+        <div className="taxonomy-editor">
+          <div className="taxonomy-header"><span>Name</span><span>Description</span><span>Action</span></div>
+          {drafts.map((item) => (
+            <div className="taxonomy-row" key={item.key}>
+              <input value={item.name} onChange={(event) => updateDraft(item.key, "name", event.target.value)} aria-label="Taxonomy name" />
+              <textarea value={item.description} onChange={(event) => updateDraft(item.key, "description", event.target.value)} rows={2} aria-label="Taxonomy description" />
+              <button className="icon-button danger" onClick={() => setDrafts((current) => current.filter((candidate) => candidate.key !== item.key))} title="Remove item"><Trash2 size={17} /></button>
+            </div>
+          ))}
+        </div>
+        <button className="button button-secondary add-item-button" onClick={() => setDrafts((current) => [...current, createDraft({ name: "", description: "" })])}>
+          <Plus size={16} />Add {activeTab === "categories" ? "category" : "resolution"}
+        </button>
+      </section>
+
+      <section className="settings-section telemetry-section">
+        <div className="section-heading settings-heading">
+          <div><h2>Local telemetry</h2><p>Aggregate data from Backend/logs/telemetry.jsonl. Case content is never recorded.</p></div>
+          <button className="icon-button" onClick={() => void loadTelemetry()} title="Refresh telemetry"><RefreshCw size={17} /></button>
+        </div>
+        {telemetryError && <div className="notice notice-error">{telemetryError}</div>}
+        {telemetry && (
+          <div className="telemetry-grid">
+            <div><strong>{telemetry.totalBatches}</strong><span>Batches</span></div>
+            <div><strong>{telemetry.totalCases}</strong><span>Cases</span></div>
+            <div><strong>{telemetry.errorCount}</strong><span>Errors</span></div>
+            <div><strong>{telemetry.averageBatchDurationMs} ms</strong><span>Average batch</span></div>
+            <div><strong>{telemetry.inputTokens + telemetry.outputTokens}</strong><span>Tokens reported</span></div>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

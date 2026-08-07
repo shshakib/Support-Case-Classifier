@@ -1,202 +1,285 @@
-# AI-Powered Case Categorization App
+# Support Case Classifier
 
-Welcome to the **Case Categorization App**! This application streamlines the process of classifying customer service cases using Large Language Models (LLMs). Instead of manual categorization, you can upload a CSV file containing your case details, and the AI will automatically assign a product category, determine a resolution type, and provide reasoning with a certainty level for each case.
+**A privacy-conscious AI workflow for turning support-case CSV files into consistent, reviewable classifications.**
 
----
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-async_API-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-TypeScript-149ECA?logo=react&logoColor=white)
+![Models](https://img.shields.io/badge/Models-OpenAI%20%7C%20Gemini%20%7C%20Ollama-202124)
+![Observability](https://img.shields.io/badge/Observability-local_only-176B52)
 
-## What Does This Application Do?
+Support Case Classifier is a local-first application that classifies customer
+support cases into a configurable category and resolution taxonomy. I built it
+to explore a practical question: how can an LLM help with repetitive support
+operations without turning the workflow into a black box?
 
-In many organizations, customer service cases arrive with diverse descriptions and status updates, making consistent and efficient categorization a challenge. This application automates that crucial step.
+I wanted this to feel like a small operational tool someone could actually use,
+not a demo with one text box and a model call. The result is a complete workflow
+for importing cases, validating the data, reviewing model output, handling
+partial failures, and exporting the enriched CSV.
 
-### **Core Features:**
+<p align="center">
+  <img src="docs/images/workspace-review.png" alt="Support Case Classifier review workspace" width="100%" />
+</p>
 
-- **Automated Case Categorization:**  
-  Leverages powerful LLMs to analyze case descriptions and status reasons to predict relevant product categories and resolution types.
+## The Problem
 
-- **Customizable Categorization:**  
-  The LLM uses predefined lists of product categories and resolution types (fetched from the backend) to ensure consistent and controlled classification.
+Support teams often receive cases in spreadsheets or exports that still need to
+be categorized before they can be routed or analyzed. Doing this manually is
+slow and inconsistent, but a simple LLM script introduces its own problems:
 
-- **Prediction Insights:**  
-  For each categorized case, the application provides a predicted category, a predicted resolution, a certainty score (*high*, *medium*, or *low*), and a concise reasoning explaining the LLM's decision.
+- one failed request can interrupt the whole batch;
+- sequential calls make larger files unnecessarily slow;
+- model responses may not match the allowed business taxonomy;
+- hosted observability can expose sensitive case content;
+- raw CSV identifiers and extra columns are easy to lose or corrupt.
 
-- **Flexible LLM Integration:**  
-  Supports various LLM providers, including OpenAI (GPT models), Google Gemini, and local Ollama models (e.g., Llama3), allowing you to choose the best fit for your needs and resources.
+This project treats those concerns as product requirements rather than edge
+cases.
 
----
+## What I Built
 
-## CSV Data Handling
+| Area | Implementation |
+| --- | --- |
+| Import workflow | Drag-and-drop CSV upload, header normalization, row validation, skipped-row feedback, and review before classification |
+| Model layer | Provider-neutral adapters for OpenAI, Google Gemini, and local Ollama models |
+| Reliability | Structured output validation, allowed-label enforcement, timeouts, retries, and isolated row-level errors |
+| Performance | Async case processing with provider-specific concurrency limits and stable output ordering |
+| Review experience | Result summaries, search, confidence/status filters, detail drawer, and complete CSV export |
+| Configuration | Editable category and resolution taxonomies plus environment-based model configuration |
+| Privacy | Rotating local logs and sanitized aggregate telemetry with no case text, prompts, outputs, or API keys |
+| Quality | Backend API/service tests, frontend CSV regression tests, linting, formatting, and production builds |
 
-- **Easy Upload:**  
-  Simply upload your customer case data in CSV format.
+## Product Flow
 
-- **Intelligent Parsing:**  
-  The app automatically recognizes key fields like `CaseNumber`, `CaseTitle`, `Description`, and `StatusReason`. Any other columns in your CSV are preserved as "extra fields."
+1. **Upload** a CSV and validate the required support-case fields.
+2. **Review** valid rows, skipped rows, preserved columns, and the selected model.
+3. **Classify** cases concurrently using a hosted or local provider.
+4. **Inspect** predictions, confidence, reasoning, and row-level failures.
+5. **Export** the original data with classification fields appended.
 
-- **Interactive Preview:**  
-  See a real-time preview of your loaded CSV data before initiating the categorization process.
+Required columns are `CaseNumber`, `CaseTitle`, `Description`, and
+`StatusReason`. Header variants such as `Case Number` and `case_number` are
+accepted, leading zeros are preserved, and unrelated columns remain intact.
 
-- **Comprehensive Export:**  
-  Download a new CSV file containing all your original case data (including extra fields) alongside the LLM's predictions and reasoning.
+## Architecture
 
-- **Simple but User-Friendly Interface:**  
-  Web interface built with React and Tailwind CSS for a smooth user experience.
-
-> This app is a simple prototype to explore if solutions like this can actually help with automating and organizing case data.
-
----
-
-## Technologies Used
-
-### **Backend (API Server)**
-- **Python 3.10+**  
-- **FastAPI**  
-- **LangChain** (plus langchain-openai, langchain-google-genai, langchain-community, langchain-core)  
-- **Pydantic**  
-- **Uvicorn**  
-- **python-dotenv**  
-
-### **Frontend (User Interface)**
-- **React**
-- **TypeScript**
-- **Vite**
-- **Tailwind CSS**
-- **PapaParse**
-
----
-
-## Prerequisites
-
-- **Python 3.10 or higher**: [Download from python.org](https://www.python.org/downloads/)
-- **Node.js** (LTS recommended) and **npm** or **Yarn**: [Download from nodejs.org](https://nodejs.org/)
-- **An IDE/Text Editor**: (e.g. VS Code)
-- **API Keys** (Optional, depending on LLM choice):
-  - **OpenAI API Key:** [Get one from OpenAI Platform](https://platform.openai.com/account/api-keys)
-  - **Google Gemini API Key:** [Get one from Google AI Studio](https://aistudio.google.com/app/apikey)
-- **Ollama (Optional, for local LLMs):**  
-  [Download from ollama.com](https://ollama.com/) and pull the desired model (e.g., `ollama pull llama3`)
-
----
-
-## Getting Started (Step-by-Step)
-
-### 1. **Clone the Repository**
-
-```bash
-git clone <repository_url>
-cd <repository_name>
+```mermaid
+flowchart LR
+    CSV["Support case CSV"] --> UI["React + TypeScript UI"]
+    UI --> API["FastAPI API"]
+    API --> SERVICE["Async classification service"]
+    SERVICE --> ADAPTER["Provider-neutral adapter"]
+    ADAPTER --> OPENAI["OpenAI"]
+    ADAPTER --> GEMINI["Google Gemini"]
+    ADAPTER --> OLLAMA["Ollama"]
+    SERVICE --> TELEMETRY["Sanitized local telemetry"]
+    API --> TAXONOMY["Atomic taxonomy storage"]
 ```
 
-### 2. **Backend Setup**
+The frontend owns the import, review, and results experience. FastAPI owns
+configuration, taxonomy persistence, provider access, validation, concurrency,
+and observability. Stable model IDs keep the UI independent from individual SDK
+implementations and model names.
 
-```bash
-cd backend
-# a. Create a Virtual Environment
-python -m venv venv
+## Engineering Decisions
 
-# b. Activate the Virtual Environment
-# On macOS/Linux:
-source venv/bin/activate
-# On Windows (Command Prompt):
-.
-env\Scripts ctivate.bat
-# On Windows (PowerShell):
-.
-env\Scripts\Activate.ps1
+### React and FastAPI instead of Streamlit
 
-# c. Install Python Dependencies
-pip install -r requirements.txt
+Streamlit would have been a quick way to demonstrate a single prediction. I
+kept the React and FastAPI split because this application has multi-step state,
+dense tables, filters, drawers, settings, validation, and export behavior. The
+separation also makes the classification service reusable outside the current
+interface.
+
+### Async, but deliberately bounded
+
+Each case is independent, so the service uses `asyncio.gather()` to process a
+batch concurrently while preserving source order. A process-wide semaphore for
+each provider prevents simultaneous uploads from bypassing the configured
+limits.
+
+The defaults are conservative:
+
+- OpenAI: 4 concurrent calls
+- Google Gemini: 4 concurrent calls
+- Ollama: 1 concurrent call
+
+One timeout, malformed response, or provider failure becomes a row-level error.
+It does not discard predictions that already succeeded.
+
+### Structured outputs over free-form parsing
+
+Every provider is adapted to the same typed prediction schema. Returned
+categories and resolutions are checked against the configured taxonomy before
+they reach the UI. This keeps the output useful for filtering and downstream
+automation instead of accepting almost-correct labels.
+
+### Local observability by default
+
+The application does not send traces to LangSmith or another monitoring
+platform. It writes two ignored local files under `Backend/logs/`:
+
+- `app.log` contains rotating structured operational events;
+- `telemetry.jsonl` contains one aggregate event per classification batch.
+
+Telemetry is limited to provider/model, batch size, success and error counts,
+duration, and token totals when available. It does not record case numbers,
+titles, descriptions, status reasons, customer fields, prompts, model output,
+or API keys.
+
+Hosted models still receive the case fields needed for classification. Ollama
+is the appropriate option when case content must remain on the local machine.
+
+## Technology
+
+| Layer | Tools |
+| --- | --- |
+| Frontend | React, TypeScript, Vite, Papa Parse, Lucide icons |
+| Backend | Python, FastAPI, Pydantic, asyncio |
+| Model integration | LangChain provider adapters and structured output schemas |
+| Providers | OpenAI, Google Gemini, Ollama |
+| Testing and quality | Pytest, Vitest, Ruff, ESLint, TypeScript |
+| Developer experience | VS Code tasks, debugger configuration, environment templates |
+
+## Run Locally
+
+### Requirements
+
+- Python 3.11 through 3.14
+- Node.js 20 or newer
+- VS Code recommended
+- An API key for a hosted provider, or a running Ollama installation
+
+### 1. Clone and install the backend
+
+```powershell
+git clone https://github.com/shshakib/support-case-classifier.git
+cd support-case-classifier
+python -m venv Backend\.venv
+cd Backend
+.\.venv\Scripts\python.exe -m pip install -e ".[dev]"
+Copy-Item .env.example .env
+cd ..
 ```
 
-**requirements.txt:**
-```txt
-fastapi==0.111.0
-uvicorn==0.30.1
-pydantic==2.7.1
-python-dotenv==1.0.1
-langchain-openai==0.1.14
-langchain-google-genai==0.1.18
-langchain-community==0.0.38
-langchain-core==0.2.14
-```
-
-**d. Configure Environment Variables**  
-Create a file named `.env` in your backend directory (at the same level as `main.py`):
+Add the providers you plan to use to `Backend/.env`:
 
 ```env
-# Example .env file for backend
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4o-mini
 
-# If using OpenAI:
-OPENAI_API_KEY="your_openai_api_key_here"
+GOOGLE_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash-lite
 
-# If using Google Gemini:
-GOOGLE_API_KEY="your_google_api_key_here"
-```
-_No entry needed for Ollama; just ensure Ollama is running locally._
-
-**e. Run the Backend Server**
-```bash
-uvicorn main:app --reload
-```
-The backend server will run on [http://localhost:8000](http://localhost:8000).
-
----
-
-### 3. **Frontend Setup**
-
-Open a new terminal and go to your frontend directory:
-
-```bash
-cd ../frontend
-
-# a. Install Node.js Dependencies
-npm install
-# OR
-yarn
-
-# b. Run the Frontend Development Server
-npm run dev
-# OR
-yarn dev
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=llama3
 ```
 
-The frontend app runs at [http://localhost:5173](http://localhost:5173).
+API keys stay in the backend and `.env` is ignored by Git. Model names,
+timeouts, batch limits, and provider concurrency can be changed without editing
+source code.
 
----
+### 2. Install the frontend
 
-## Using the Application
+```powershell
+cd frontend
+npm.cmd install
+cd ..
+```
 
-1. **Access the App:**  
-   Open [http://localhost:5173](http://localhost:5173) in your browser.
+`npm.cmd` is used in the examples because it also works on Windows machines
+where PowerShell blocks the `npm.ps1` wrapper.
 
-2. **Configure the LLM:**  
-   Choose your LLM model (OpenAI, Google Gemini, or Local Ollama) from the settings.  
-   Make sure you have set up the necessary API keys or have Ollama running, with the keys configured in your `.env` file.
+### 3. Start the application
 
-3. **Adjust Categories and Resolution Types:**  
-   Configure and edit the product categories and resolution types, along with their descriptions, to fit your needs.
+Open the repository root in VS Code and run these tasks from
+**Terminal > Run Task**:
 
-4. **Upload CSV:**  
-   Return to the main page and click the "Upload Cases CSV" button to select your case data file.  
-   *(A `Sample.csv` is provided in the repository for testing.)*  
-   Your CSV should have columns like: `CaseNumber`, `CaseTitle`, `Description`, and `StatusReason`.
+1. `Backend: Run API`
+2. `Frontend: Run App`
 
-5. **Preview:**  
-   See a preview of your loaded CSV data.
+Then open:
 
-6. **Start Categorization:**  
-   Click "Categorize Cases" to process your cases with the AI.
+- Application: [http://localhost:5173](http://localhost:5173)
+- Interactive API docs: [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs)
 
-7. **View Results:**  
-   Once processing is complete, review the "Categorization Results" table, which will display:
-   - Original case details
-   - Predicted category and resolution
-   - Certainty
-   - Reasoning
+For backend breakpoints, choose **Run and Debug > Backend API (FastAPI)**.
 
-8. **Download Results:**  
-   Click "Export Results to CSV" to download all your original case data, plus the AI’s predictions.
+The servers can also be started in separate terminals:
 
+```powershell
+cd Backend
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+```
 
-![App demo](./assets/demo.gif)
+```powershell
+cd frontend
+npm.cmd run dev
+```
 
----
+## Verify the Project
+
+Backend:
+
+```powershell
+cd Backend
+.\.venv\Scripts\python.exe -m pytest -q
+.\.venv\Scripts\python.exe -m ruff check .
+.\.venv\Scripts\python.exe -m ruff format --check .
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm.cmd test
+npm.cmd run lint
+npm.cmd run build
+```
+
+Backend classification tests use a fake asynchronous model. They verify
+concurrency, stable ordering, isolated failures, and sanitized telemetry without
+spending API credits or transmitting case data.
+
+## Project Structure
+
+```text
+Backend/
+  app/
+    config.py          Environment configuration
+    logging_config.py  Rotating structured logs
+    main.py            FastAPI routes and application factory
+    providers.py       Model definitions and provider adapters
+    repository.py      Atomic taxonomy persistence
+    schemas.py         API and model-output contracts
+    service.py         Bounded async classification
+    telemetry.py       Sanitized local telemetry
+  data/                Taxonomy defaults and sample CSV
+  tests/               API and service tests
+
+frontend/
+  src/
+    api/               Typed API client
+    components/        Classifier and settings screens
+    utils/             CSV import and export
+    App.tsx            Application shell and shared state
+    types.ts           Frontend domain contracts
+```
+
+## Current Scope and Next Steps
+
+The current version is designed for local, small-to-medium batch workflows.
+Classification runs within the API request, the default maximum is 200 cases,
+and classification history is not persisted.
+
+The next meaningful additions would be:
+
+- background jobs with progress updates for larger batches;
+- explicit provider connectivity checks separate from backend health;
+- a small labeled evaluation set for accuracy and prompt regression testing;
+- persistent run history with role-based access for a shared deployment;
+- configurable confidence thresholds and human-review queues.
+
+These are intentionally left as product-level next steps rather than hidden
+behind placeholder UI.
