@@ -71,18 +71,9 @@ are accepted. Additional columns are preserved through review and export.
 
 ## Architecture
 
-```mermaid
-flowchart LR
-    CSV["Support case CSV"] --> UI["React + TypeScript"]
-    UI --> API["FastAPI"]
-    API --> SERVICE["Async classification service"]
-    SERVICE --> ADAPTER["Provider adapter"]
-    ADAPTER --> OPENAI["OpenAI"]
-    ADAPTER --> GEMINI["Google Gemini"]
-    ADAPTER --> OLLAMA["Ollama"]
-    SERVICE --> LOGS["Local logs + telemetry"]
-    API --> TAXONOMY["Category + resolution storage"]
-```
+<p align="center">
+  <img src="docs/media/architecture.svg" alt="Support Case Classifier architecture showing the CSV, React frontend, FastAPI backend, asynchronous classification service, model providers, taxonomy storage, and local telemetry" width="100%" />
+</p>
 
 | Layer | Responsibilities |
 | --- | --- |

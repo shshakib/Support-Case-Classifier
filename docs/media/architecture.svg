@@ -1,0 +1,72 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="520" viewBox="0 0 1400 520" role="img" aria-labelledby="title description">
+  <title id="title">Support Case Classifier architecture</title>
+  <desc id="description">Support case CSV data moves through the React frontend, FastAPI backend, asynchronous classification service, and provider adapter to OpenAI, Google Gemini, or Ollama. FastAPI also manages taxonomy storage, while the classification service writes sanitized local logs and telemetry.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+    </marker>
+    <style>
+      .label { font-family: "Segoe UI", Arial, sans-serif; font-size: 18px; font-weight: 600; fill: #172033; }
+      .detail { font-family: "Segoe UI", Arial, sans-serif; font-size: 14px; font-weight: 400; fill: #526075; }
+      .section { font-family: "Segoe UI", Arial, sans-serif; font-size: 13px; font-weight: 600; fill: #64748b; text-transform: uppercase; }
+      .line { fill: none; stroke: #64748b; stroke-width: 2; marker-end: url(#arrow); }
+      .branch { fill: none; stroke: #94a3b8; stroke-width: 2; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1400" height="520" fill="#f8fafc" />
+  <text x="30" y="42" class="section">Classification request</text>
+  <text x="1200" y="42" class="section">Model providers</text>
+
+  <path class="line" d="M 180 230 H 225" />
+  <path class="line" d="M 425 230 H 465" />
+  <path class="line" d="M 645 230 H 685" />
+  <path class="line" d="M 915 230 H 955" />
+  <path class="line" d="M 1155 230 H 1175 V 105 H 1195" />
+  <path class="line" d="M 1155 230 H 1195" />
+  <path class="line" d="M 1155 230 H 1175 V 355 H 1195" />
+  <path class="branch" d="M 555 305 V 375" />
+  <path class="branch" d="M 800 305 V 375" />
+
+  <rect x="30" y="180" width="150" height="100" rx="6" fill="#ffffff" stroke="#94a3b8" stroke-width="2" />
+  <text x="105" y="220" class="label" text-anchor="middle">Support cases</text>
+  <text x="105" y="248" class="detail" text-anchor="middle">CSV input</text>
+
+  <rect x="225" y="160" width="200" height="140" rx="6" fill="#eff6ff" stroke="#2563eb" stroke-width="2" />
+  <text x="325" y="210" class="label" text-anchor="middle">React frontend</text>
+  <text x="325" y="240" class="detail" text-anchor="middle">Upload and review</text>
+  <text x="325" y="264" class="detail" text-anchor="middle">Results and export</text>
+
+  <rect x="465" y="160" width="180" height="140" rx="6" fill="#ecfdf5" stroke="#059669" stroke-width="2" />
+  <text x="555" y="210" class="label" text-anchor="middle">FastAPI</text>
+  <text x="555" y="240" class="detail" text-anchor="middle">Validation and config</text>
+  <text x="555" y="264" class="detail" text-anchor="middle">API routes</text>
+
+  <rect x="685" y="160" width="230" height="140" rx="6" fill="#f1f5f9" stroke="#475569" stroke-width="2" />
+  <text x="800" y="205" class="label" text-anchor="middle">Classification service</text>
+  <text x="800" y="235" class="detail" text-anchor="middle">Bounded concurrency</text>
+  <text x="800" y="259" class="detail" text-anchor="middle">Timeouts and ordering</text>
+
+  <rect x="955" y="160" width="200" height="140" rx="6" fill="#fff7ed" stroke="#ea580c" stroke-width="2" />
+  <text x="1055" y="210" class="label" text-anchor="middle">Provider adapter</text>
+  <text x="1055" y="240" class="detail" text-anchor="middle">Shared prediction</text>
+  <text x="1055" y="264" class="detail" text-anchor="middle">schema</text>
+
+  <rect x="1195" y="65" width="175" height="80" rx="6" fill="#fef2f2" stroke="#dc2626" stroke-width="2" />
+  <text x="1282.5" y="112" class="label" text-anchor="middle">OpenAI</text>
+
+  <rect x="1195" y="190" width="175" height="80" rx="6" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" />
+  <text x="1282.5" y="237" class="label" text-anchor="middle">Google Gemini</text>
+
+  <rect x="1195" y="315" width="175" height="80" rx="6" fill="#ecfeff" stroke="#0891b2" stroke-width="2" />
+  <text x="1282.5" y="362" class="label" text-anchor="middle">Ollama</text>
+
+  <rect x="465" y="375" width="180" height="95" rx="6" fill="#ffffff" stroke="#059669" stroke-width="2" />
+  <text x="555" y="415" class="label" text-anchor="middle">Taxonomy</text>
+  <text x="555" y="443" class="detail" text-anchor="middle">Categories + resolutions</text>
+
+  <rect x="685" y="375" width="230" height="95" rx="6" fill="#ffffff" stroke="#475569" stroke-width="2" />
+  <text x="800" y="415" class="label" text-anchor="middle">Local observability</text>
+  <text x="800" y="443" class="detail" text-anchor="middle">Logs + sanitized telemetry</text>
+</svg>
